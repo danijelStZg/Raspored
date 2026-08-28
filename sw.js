@@ -1,7 +1,7 @@
 // Service worker za "Moj raspored" — cache app shella za rad bez interneta.
 // Podaci o rasporedu žive u localStorage, ne ovise o service workeru.
 
-const CACHE_NAME = 'raspored-shell-v1';
+const CACHE_NAME = 'raspored-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -11,7 +11,9 @@ const APP_SHELL = [
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
-  './icons/favicon-16.png'
+  './icons/favicon-16.png',
+  './lib/lz-string.min.js',
+  './lib/jsqr.js'
 ];
 
 self.addEventListener('install', (event) => {

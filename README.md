@@ -10,11 +10,30 @@ njihovom uređaju (localStorage).
 ## Struktura
 
 ```
-index.html          → cijela aplikacija (HTML/CSS/JS u jednoj datoteci)
+index.html          → cijela aplikacija (HTML/CSS/JS)
 manifest.json        → PWA manifest (ime, ikone, boje)
 sw.js                 → service worker (offline cache)
 icons/                → ikone za početni zaslon i favicon
+lib/                  → ugrađene knjižnice (bez CDN-a):
+  jsqr.js               čitanje QR koda iz kamere (cozmo/jsQR, Apache-2.0)
+  lz-string.min.js       dekompresija QR podataka (pieroxy, MIT/WTFPL)
 ```
+
+## Uvoz rasporeda — datoteka ili QR kod
+
+Aplikacija nudi dva načina uvoza, oba ručna (bez servera):
+
+- **Iz datoteke (.json)** — datoteka izvezena gumbom "⬇ Izvoz" u e-Dnevnik dashboardu.
+- **Skeniranjem QR koda** — e-Dnevnik dashboard ima gumb "📱 QR kod" koji prikaže
+  QR kod (ili više njih, ako je raspored prevelik za jedan kod — dashboard ih
+  tada sam automatski izmjenjuje svake 1,8 sekunde). Aplikacija ih skenira
+  redom kamerom i sastavlja raspored čim skenira sve dijelove.
+
+Skeniranje kamerom zahtijeva **siguran kontekst** (HTTPS ili `localhost`) —
+GitHub Pages to zadovoljava automatski, ali lokalni `python3 -m http.server`
+preko obične HTTP adrese na drugom uređaju (npr. testiranje s mobitela preko
+lokalne mreže) neće dobiti dozvolu za kameru. Za takvo testiranje koristi
+`localhost` na istom uređaju ili alat poput `ngrok`/`ssh -L` za HTTPS tunel.
 
 ## Objava na GitHub Pages
 
@@ -45,9 +64,9 @@ pa otvori `http://localhost:8080`.
 
 ## Ažuriranje aplikacije kasnije
 
-Service worker koristi cache pod imenom `raspored-shell-v1`. Ako kasnije
-promijeniš `index.html`, `manifest.json` ili ikone, povećaj broj u
-`CACHE_NAME` unutar `sw.js` (npr. `raspored-shell-v2`) — to tjera stare
+Service worker koristi cache pod imenom `raspored-shell-v2`. Ako kasnije
+promijeniš `index.html`, `manifest.json`, ikone ili datoteke u `lib/`, povećaj
+broj u `CACHE_NAME` unutar `sw.js` (npr. `raspored-shell-v3`) — to tjera stare
 instalirane appove da preuzmu novu verziju umjesto da ostanu na cache-iranoj.
 
 ## Napomena o ikonama

@@ -524,6 +524,55 @@
     cursor:pointer;
     padding:4px;
   }
+
+  /* ── QR scanner ── */
+  .qr-scanner{
+    position:fixed; inset:0;
+    background:#000;
+    z-index:80;
+    display:none;
+    flex-direction:column;
+  }
+  .qr-scanner.open{display:flex;}
+  .qr-scanner video{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    background:#000;
+  }
+  .qr-scanner-top{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;
+    background:linear-gradient(180deg, rgba(0,0,0,0.6), transparent);
+    z-index:2;
+  }
+  .qr-scanner-top .title{color:#fff; font-family:var(--font-display); font-weight:700; font-size:15px;}
+  .qr-scanner-close{
+    width:34px;height:34px;border-radius:10px;
+    background:rgba(255,255,255,0.16); color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    border:none; font-size:16px; cursor:pointer;
+  }
+  .qr-frame-guide{
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:min(68vw, 270px); height:min(68vw, 270px);
+    border:3px dashed rgba(255,255,255,0.55);
+    border-radius:22px;
+    z-index:1;
+    pointer-events:none;
+  }
+  .qr-scanner-bottom{
+    position:absolute; bottom:0; left:0; right:0;
+    padding:18px 20px calc(20px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(0deg, rgba(0,0,0,0.68), transparent);
+    text-align:center;
+    z-index:2;
+  }
+  .qr-scan-progress-text{color:#fff; font-size:13px; font-weight:600; margin-bottom:8px;}
+  .qr-scan-dots{display:flex; gap:6px; justify-content:center;}
+  .qr-scan-dots span{width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.35); display:inline-block;}
 </style>
 </head>
 <body>
@@ -548,6 +597,25 @@
   <button class="ib-install" onclick="installApp()">Instaliraj</button>
   <button class="ib-dismiss" onclick="dismissInstallBanner()">✕</button>
 </div>
+
+<div class="qr-scanner" id="qr-scanner">
+  <div class="qr-scanner-top">
+    <div class="title">📷 Skeniraj QR kod</div>
+    <button class="qr-scanner-close" onclick="closeQrScanner()">✕</button>
+  </div>
+  <video id="qr-video" playsinline muted></video>
+  <canvas id="qr-canvas" style="display:none"></canvas>
+  <div class="qr-frame-guide"></div>
+  <div class="qr-scanner-bottom">
+    <div class="qr-scan-progress-text" id="qr-scan-progress">Traži QR kod…</div>
+    <div class="qr-scan-dots" id="qr-scan-dots"></div>
+  </div>
+</div>
+
+<!-- lz-string (pieroxy, MIT/WTFPL) — dekompresija QR podataka -->
+<script src="lib/lz-string.min.js"></script>
+<!-- jsQR (cozmo/jsQR, Apache-2.0) — čitanje QR koda iz kamere -->
+<script src="lib/jsqr.js"></script>
 
 <script>
 // ══════════════════════════════════════════
@@ -693,6 +761,14 @@ function handleImportFile(event){
 }
 function triggerImport(){ document.getElementById('file-input').click(); }
 
+function openAddChooser(){
+  document.getElementById('sheet-body').innerHTML = `
+    <div class="sheet-row" onclick="triggerImport()">📂 Iz datoteke (.json) <span class="arrow">›</span></div>
+    <div class="sheet-row" onclick="closeSheet(); openQrScanner();">📷 Skeniraj QR kod <span class="arrow">›</span></div>
+  `;
+  document.getElementById('sheet-backdrop').classList.add('open');
+}
+
 function deleteActiveProfile(){
   const p = activeProfile();
   if (!p) return;
@@ -709,7 +785,7 @@ function deleteActiveProfile(){
 function openSettingsSheet(){
   const p = activeProfile();
   document.getElementById('sheet-body').innerHTML = `
-    <div class="sheet-row" onclick="triggerImport()">📂 Uvezi / ažuriraj raspored <span class="arrow">›</span></div>
+    <div class="sheet-row" onclick="openAddChooser()">📂 Dodaj / ažuriraj raspored <span class="arrow">›</span></div>
     ${p ? `<div class="sheet-row danger" onclick="deleteActiveProfile()">🗑️ Obriši raspored za ${p.student.name} <span class="arrow">›</span></div>` : ''}
   `;
   document.getElementById('sheet-backdrop').classList.add('open');
@@ -798,7 +874,7 @@ function renderProfilesRow(){
     </div>
   `).join('');
   return `<div class="profiles-row">${rows}
-    <div class="profile-chip add" onclick="triggerImport()">+ Dodaj</div>
+    <div class="profile-chip add" onclick="openAddChooser()">+ Dodaj</div>
   </div>`;
 }
 
@@ -953,12 +1029,162 @@ function renderEmptyState(){
         <code>⬇ Izvoz</code>. Preuzetu datoteku (.json) uvezi ovdje.
       </div>
       <button class="btn-primary" onclick="triggerImport()">📂 Uvezi raspored</button>
+      <div style="margin-top:14px">
+        <button class="btn-secondary" onclick="openQrScanner()">📷 ili skeniraj QR kod</button>
+      </div>
     </div>
   `;
 }
 
 function escapeHtml(str){
   return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ══════════════════════════════════════════
+//  QR SKENER — uvoz rasporeda skeniranjem QR koda
+// ══════════════════════════════════════════
+// Očekivani format: "RQ1:<dio>:<ukupno>:<lz-string base64 payload>"
+// (isti format koji generira gumb "📱 QR kod" u e-Dnevnik dashboardu)
+
+let _qrStream = null;
+let _qrRAF = null;
+let _qrParts = {};
+let _qrTotal = null;
+
+async function openQrScanner(){
+  closeSheet();
+  _qrParts = {};
+  _qrTotal = null;
+  const overlay = document.getElementById('qr-scanner');
+  overlay.classList.add('open');
+  updateQrScanProgress();
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    toast('⚠️ Ovaj preglednik ne podržava kameru. Koristi uvoz iz datoteke.', 3500);
+    closeQrScanner();
+    return;
+  }
+  try {
+    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('qr-video');
+    video.srcObject = _qrStream;
+    await video.play();
+    _qrRAF = requestAnimationFrame(scanQrFrame);
+  } catch (err) {
+    toast('⚠️ Nemam pristup kameri. Provjeri dozvole ili koristi uvoz iz datoteke.', 3800);
+    closeQrScanner();
+  }
+}
+
+function scanQrFrame(){
+  const video = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  if (video && video.readyState === video.HAVE_ENOUGH_DATA){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data) handleQrChunk(code.data);
+    } catch (e) { /* frame nije spreman, preskoči */ }
+  }
+  if (_qrStream) _qrRAF = requestAnimationFrame(scanQrFrame); // ne nastavljaj petlju ako je kamera već zaustavljena
+}
+
+function handleQrChunk(text){
+  const m = text.match(/^RQ1:(\d+):(\d+):([\s\S]*)$/);
+  if (!m) return; // QR kod nije prepoznat kao raspored — nastavi tražiti
+  const idx = parseInt(m[1], 10), total = parseInt(m[2], 10), data = m[3];
+  if (_qrTotal == null) _qrTotal = total;
+  if (!_qrParts[idx]){
+    _qrParts[idx] = data;
+    updateQrScanProgress();
+    if (navigator.vibrate) navigator.vibrate(40);
+  }
+  if (Object.keys(_qrParts).length >= _qrTotal) finishQrScan();
+}
+
+function updateQrScanProgress(){
+  const textEl = document.getElementById('qr-scan-progress');
+  const dotsEl = document.getElementById('qr-scan-dots');
+  if (!textEl) return;
+  const have = Object.keys(_qrParts).length;
+  if (!_qrTotal){
+    textEl.textContent = 'Traži QR kod…';
+    dotsEl.innerHTML = '';
+  } else if (_qrTotal === 1){
+    textEl.textContent = 'Kod pronađen — uvozim…';
+    dotsEl.innerHTML = '';
+  } else {
+    textEl.textContent = `Skenirano ${have} / ${_qrTotal} dijela`;
+    dotsEl.innerHTML = Array.from({length: _qrTotal}).map((_, i) =>
+      `<span style="background:${_qrParts[i+1] ? '#3F9F6C' : 'rgba(255,255,255,0.35)'}"></span>`
+    ).join('');
+  }
+}
+
+function expandCompactSchedule(c){
+  const days = ['MON','TUE','WED','THU','FRI'];
+  const toDayObj = (arr) => {
+    const o = {};
+    days.forEach((d, i) => { o[d] = (arr && arr[i]) || []; });
+    return o;
+  };
+  return {
+    student: { name: c.n || '', class: c.c || '', school: c.sc || '' },
+    bells: { morning: c.bm || [], afternoon: c.ba || [] },
+    schedule: { morning: toDayObj(c.dm), afternoon: toDayObj(c.da) },
+    subjects: []
+  };
+}
+
+function finishQrScan(){
+  try {
+    const ordered = [];
+    for (let i = 1; i <= _qrTotal; i++) ordered.push(_qrParts[i] || '');
+    const compressed = ordered.join('');
+    const json = LZString.decompressFromBase64(compressed);
+    if (!json) throw new Error('Podaci nisu čitljivi');
+    const compact = JSON.parse(json);
+    const raw = expandCompactSchedule(compact);
+    const profile = normalizeProfile(raw);
+
+    const existingIdx = STATE.profiles.findIndex(p =>
+      p.student.name === profile.student.name && p.student.school === profile.student.school
+    );
+    if (existingIdx >= 0){
+      profile.id = STATE.profiles[existingIdx].id;
+      STATE.profiles[existingIdx] = profile;
+      toast(`✓ Raspored za ${profile.student.name} ažuriran (QR)`);
+    } else {
+      STATE.profiles.push(profile);
+      toast(`✓ Uvezen raspored za ${profile.student.name} (QR)`);
+    }
+    saveProfiles(STATE.profiles);
+    STATE.activeId = profile.id;
+    setActiveId(profile.id);
+    STATE.selectedShift = shiftHasData(profile, 'morning') ? 'morning' : (shiftHasData(profile,'afternoon') ? 'afternoon' : 'morning');
+    closeQrScanner(); // zaustavlja kameru tek nakon uspješnog uvoza
+    renderApp();
+  } catch (err) {
+    // Neuspjelo sastavljanje/parsiranje — kamera ostaje aktivna, dozvoli ponovni pokušaj
+    toast('⚠️ QR kod nije prepoznat kao raspored.', 3000);
+    _qrParts = {}; _qrTotal = null;
+    updateQrScanProgress();
+  }
+}
+
+function stopQrCamera(){
+  if (_qrRAF) cancelAnimationFrame(_qrRAF);
+  _qrRAF = null;
+  if (_qrStream){ _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+}
+
+function closeQrScanner(){
+  stopQrCamera();
+  document.getElementById('qr-scanner').classList.remove('open');
 }
 
 // ── Init ──
