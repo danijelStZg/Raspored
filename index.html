@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Moj raspored</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#262A3B">
+<meta name="background-color" content="#FAF6EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Raspored">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF6EC;
+    --paper2:#F3EDDD;
+    --rule:#CBD8E9;
+    --margin:#E2646F;
+    --ink:#262A3B;
+    --ink-soft:#666B7D;
+    --ink-faint:#A6ABB9;
+    --sun:#EF9B2E;
+    --sun-soft:#FCEBD2;
+    --dusk:#6C63C9;
+    --dusk-soft:#E7E4F7;
+    --card:#FFFFFF;
+    --line:#E4DFCF;
+    --good:#3F9F6C;
+    --font-display:'Baloo 2', system-ui, sans-serif;
+    --font-body:'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono:'DM Mono', monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:
+      repeating-linear-gradient(180deg, transparent, transparent 27px, var(--rule) 27px, var(--rule) 28px),
+      var(--paper);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+  }
+
+  .app{
+    width:100%;
+    max-width:460px;
+    min-height:100vh;
+    background:transparent;
+    position:relative;
+    padding-bottom:40px;
+  }
+
+  /* ── Header ── */
+  .app-header{
+    padding:22px 18px 14px;
+    position:relative;
+  }
+  .app-eyebrow{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:6px;
+  }
+  .sticker{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    background:var(--card);
+    border-radius:14px;
+    padding:12px 16px;
+    box-shadow:0 3px 0 var(--line), 0 6px 14px rgba(38,42,59,0.06);
+    transform:rotate(-0.6deg);
+    position:relative;
+    width:100%;
+  }
+  .sticker::before{
+    content:'';
+    position:absolute;
+    top:-7px; left:22px;
+    width:34px; height:14px;
+    background:rgba(239,155,46,0.35);
+    border:1px solid rgba(239,155,46,0.45);
+    transform:rotate(-4deg);
+  }
+  .sticker-emoji{font-size:26px; line-height:1;}
+  .sticker-name{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:18px;
+    color:var(--ink);
+    line-height:1.15;
+  }
+  .sticker-sub{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .header-actions{
+    position:absolute;
+    top:22px; right:18px;
+    display:flex; gap:6px;
+  }
+  .icon-btn{
+    width:34px; height:34px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--card);
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px;
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .icon-btn:active{transform:scale(0.94);}
+
+  /* ── Profile switcher ── */
+  .profiles-row{
+    display:flex;
+    gap:8px;
+    padding:2px 18px 4px;
+    overflow-x:auto;
+  }
+  .profile-chip{
+    flex:0 0 auto;
+    display:flex; align-items:center; gap:6px;
+    padding:6px 12px 6px 6px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--card);
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .profile-chip.active{
+    background:var(--ink);
+    color:#fff;
+    border-color:var(--ink);
+  }
+  .profile-chip .avatar{
+    width:20px; height:20px;
+    border-radius:50%;
+    background:var(--sun-soft);
+    color:var(--sun);
+    font-size:10px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .profile-chip.active .avatar{background:rgba(255,255,255,0.2); color:#fff;}
+  .profile-chip.add{
+    color:var(--ink-soft);
+    font-weight:700;
+  }
+
+  /* ── Day tabs (torn paper) ── */
+  .day-tabs{
+    display:flex;
+    gap:6px;
+    padding:10px 14px 4px;
+  }
+  .day-tab{
+    flex:1;
+    text-align:center;
+    padding:9px 0 8px;
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:13px;
+    color:var(--ink-soft);
+    background:var(--paper2);
+    border-radius:10px 10px 4px 4px;
+    cursor:pointer;
+    position:relative;
+    transform:translateY(2px) rotate(0deg);
+    transition:transform .15s ease, background .15s ease, color .15s ease;
+    border:1px solid var(--line);
+    border-bottom:none;
+  }
+  .day-tab.today::after{
+    content:'';
+    position:absolute;
+    bottom:4px; left:50%;
+    transform:translateX(-50%);
+    width:4px; height:4px;
+    border-radius:50%;
+    background:var(--sun);
+  }
+  .day-tab.active{
+    background:var(--card);
+    color:var(--ink);
+    transform:translateY(-2px) rotate(0deg);
+    box-shadow:0 2px 6px rgba(38,42,59,0.08);
+  }
+  .day-tab.active.today::after{background:var(--good);}
+
+  /* ── Shift toggle ── */
+  .shift-toggle{
+    margin:2px 18px 14px;
+    display:flex;
+    background:var(--paper2);
+    border-radius:12px;
+    padding:3px;
+    border:1px solid var(--line);
+  }
+  .shift-btn{
+    flex:1;
+    text-align:center;
+    padding:8px 0;
+    border-radius:9px;
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .shift-btn.active.morning{background:var(--sun-soft); color:#9a5c14;}
+  .shift-btn.active.afternoon{background:var(--dusk-soft); color:#463d94;}
+
+  /* ── Now card ── */
+  .now-wrap{padding:4px 18px 6px;}
+  .now-card{
+    border-radius:18px;
+    padding:16px 16px 14px;
+    background:var(--card);
+    border:1px solid var(--line);
+    box-shadow:0 4px 16px rgba(38,42,59,0.07);
+    position:relative;
+    overflow:hidden;
+    animation:riseIn .35s ease both;
+  }
+  @keyframes riseIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .now-card::before{
+    content:'';
+    position:absolute; left:0; top:0; bottom:0;
+    width:6px;
+    background:var(--stripe, var(--margin));
+  }
+  .now-label{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:8px;
+  }
+  .now-dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--good);
+    box-shadow:0 0 0 3px rgba(63,159,108,0.18);
+    animation:pulse 1.8s infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+  .now-main{display:flex; justify-content:space-between; align-items:flex-end; gap:10px;}
+  .now-subject{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:19px;
+    color:var(--ink);
+    line-height:1.2;
+  }
+  .now-room{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+  .now-time{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    text-align:right;
+    white-space:nowrap;
+  }
+  .now-progress{
+    margin-top:12px;
+    height:6px;
+    border-radius:4px;
+    background:var(--paper2);
+    overflow:hidden;
+  }
+  .now-progress > div{
+    height:100%;
+    border-radius:4px;
+    background:var(--stripe, var(--margin));
+    transition:width .4s ease;
+  }
+  .now-remaining{
+    margin-top:6px;
+    font-size:11.5px;
+    color:var(--ink-faint);
+  }
+
+  /* ── Period list ── */
+  .list-wrap{padding:6px 18px 10px;}
+  .list-title{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin:14px 2px 8px;
+  }
+  .period-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 4px;
+    border-bottom:1px dashed var(--line);
+    opacity:1;
+  }
+  .period-row.past{opacity:0.42;}
+  .period-row.current{
+    background:rgba(226,100,111,0.06);
+    border-radius:10px;
+    margin:0 -6px;
+    padding:10px 10px;
+    border-bottom:none;
+  }
+  .period-num{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--ink-faint);
+    width:16px;
+    text-align:center;
+    flex:0 0 auto;
+  }
+  .period-time{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    width:44px;
+    flex:0 0 auto;
+  }
+  .period-stripe{
+    width:4px; align-self:stretch;
+    border-radius:2px;
+    background:var(--stripe, var(--ink-faint));
+    flex:0 0 auto;
+    min-height:20px;
+  }
+  .period-body{flex:1; min-width:0;}
+  .period-subject{
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .period-subject.empty{color:var(--ink-faint); font-weight:400; font-style:italic;}
+  .period-room{font-size:11px; color:var(--ink-soft); margin-top:1px;}
+
+  /* ── Empty state ── */
+  .empty-wrap{
+    padding:60px 30px 40px;
+    text-align:center;
+  }
+  .empty-emoji{font-size:48px; margin-bottom:14px;}
+  .empty-title{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:19px;
+    margin-bottom:8px;
+  }
+  .empty-desc{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    margin-bottom:22px;
+  }
+  .empty-desc code{
+    background:var(--paper2);
+    padding:1px 6px;
+    border-radius:5px;
+    font-family:var(--font-mono);
+    font-size:12px;
+  }
+
+  .btn-primary{
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    padding:13px 22px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:700;
+    font-family:var(--font-body);
+    cursor:pointer;
+  }
+  .btn-primary:active{transform:scale(0.97);}
+  .btn-secondary{
+    display:inline-flex; align-items:center; gap:8px;
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    padding:12px 20px;
+    border-radius:12px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+
+  .empty-inline{padding:34px 18px 10px; text-align:center;}
+  .empty-inline .empty-emoji{font-size:30px; margin-bottom:8px;}
+  .empty-inline .empty-desc{margin-bottom:14px;}
+
+  /* ── Footer note ── */
+  .footer-import{
+    padding:18px 18px 4px;
+    text-align:center;
+  }
+  .footer-import button{
+    background:none; border:none;
+    color:var(--ink-faint);
+    font-size:11.5px;
+    text-decoration:underline;
+    cursor:pointer;
+    font-family:var(--font-body);
+  }
+
+  /* ── Sheet (import / settings) ── */
+  .sheet-backdrop{
+    position:fixed; inset:0;
+    background:rgba(38,42,59,0.35);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:50;
+  }
+  .sheet-backdrop.open{display:flex;}
+  .sheet{
+    width:100%; max-width:460px;
+    background:var(--paper);
+    border-radius:20px 20px 0 0;
+    padding:20px 20px 26px;
+    animation:sheetUp .22s ease both;
+  }
+  @keyframes sheetUp{from{transform:translateY(16px); opacity:0.6;} to{transform:translateY(0); opacity:1;}}
+  .sheet-handle{
+    width:36px; height:4px; border-radius:2px;
+    background:var(--line);
+    margin:0 auto 16px;
+  }
+  .sheet-title{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:16px;
+    margin-bottom:14px;
+  }
+  .sheet-row{
+    display:flex; align-items:center; gap:12px;
+    padding:13px 4px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    font-size:14px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .sheet-row:last-child{border-bottom:none;}
+  .sheet-row .danger{color:var(--margin);}
+  .sheet-row span.arrow{margin-left:auto; color:var(--ink-faint); font-weight:400;}
+
+  .toast{
+    position:fixed;
+    left:50%; bottom:24px;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--ink);
+    color:#fff;
+    padding:11px 18px;
+    border-radius:12px;
+    font-size:13px;
+    font-weight:600;
+    opacity:0;
+    pointer-events:none;
+    transition:all .25s ease;
+    z-index:100;
+    max-width:88%;
+    text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  input[type=file]{display:none;}
+
+  .install-banner{
+    position:fixed;
+    left:50%; bottom:16px;
+    transform:translateX(-50%) translateY(80px);
+    width:calc(100% - 32px);
+    max-width:428px;
+    background:var(--ink);
+    color:#fff;
+    border-radius:14px;
+    padding:12px 12px 12px 16px;
+    display:flex; align-items:center; gap:10px;
+    box-shadow:0 8px 22px rgba(38,42,59,0.28);
+    z-index:60;
+    opacity:0;
+    pointer-events:none;
+    transition:transform .3s ease, opacity .3s ease;
+  }
+  .install-banner.show{transform:translateX(-50%) translateY(0); opacity:1; pointer-events:auto;}
+  .install-banner .ib-emoji{font-size:20px;}
+  .install-banner .ib-text{flex:1; font-size:13px; font-weight:600; line-height:1.3;}
+  .install-banner .ib-text small{display:block; font-weight:400; color:rgba(255,255,255,0.65); font-size:11px; margin-top:1px;}
+  .install-banner button.ib-install{
+    background:#fff; color:var(--ink);
+    border:none; border-radius:9px;
+    padding:8px 12px;
+    font-size:12.5px; font-weight:700;
+    cursor:pointer;
+  }
+  .install-banner button.ib-dismiss{
+    background:none; border:none;
+    color:rgba(255,255,255,0.55);
+    font-size:15px;
+    cursor:pointer;
+    padding:4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app"></div>
+
+<div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheetOnBackdrop(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Postavke</div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input type="file" id="file-input" accept="application/json,.json" onchange="handleImportFile(event)">
+
+<div class="install-banner" id="install-banner">
+  <div class="ib-emoji">📲</div>
+  <div class="ib-text">Instaliraj Raspored na početni zaslon<small>Radi i bez interneta, otvara se kao prava app</small></div>
+  <button class="ib-install" onclick="installApp()">Instaliraj</button>
+  <button class="ib-dismiss" onclick="dismissInstallBanner()">✕</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  Moj raspored — samostalna app za pregled tjednog rasporeda
+//  Uvoz: JSON izvezen iz e-Dnevnik Dashboarda (gumb "⬇ Izvoz" na Rasporedu)
+// ══════════════════════════════════════════
+
+const DAYS = ['MON','TUE','WED','THU','FRI'];
+const DAY_SHORT = {MON:'Pon', TUE:'Uto', WED:'Sri', THU:'Čet', FRI:'Pet'};
+const DAY_LONG  = {MON:'Ponedjeljak', TUE:'Utorak', WED:'Srijeda', THU:'Četvrtak', FRI:'Petak'};
+const FALLBACK_COLORS = ['#EF9B2E','#6C63C9','#3F9F6C','#E2646F','#3C8FBF','#C77DC9','#B98A3C','#4FA88F','#D97C4E','#5C7FD9'];
+
+let STATE = {
+  profiles: [],
+  activeId: null,
+  selectedDay: null,
+  selectedShift: 'morning'
+};
+let _clockTimer = null;
+
+// ── Storage ──
+function loadProfiles(){
+  try { return JSON.parse(localStorage.getItem('raspored_profiles') || '[]'); }
+  catch { return []; }
+}
+function saveProfiles(list){ localStorage.setItem('raspored_profiles', JSON.stringify(list)); }
+function getActiveId(){ return localStorage.getItem('raspored_active_id') || null; }
+function setActiveId(id){ localStorage.setItem('raspored_active_id', id || ''); }
+
+function activeProfile(){
+  return STATE.profiles.find(p => p.id === STATE.activeId) || null;
+}
+
+// ── Helpers ──
+function uid(){ return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+function todayDayKey(){
+  const map = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  return map[new Date().getDay()];
+}
+function isWeekend(){ const d = new Date().getDay(); return d === 0 || d === 6; }
+function toast(msg, ms){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), ms || 2400);
+}
+function initials(name){
+  return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase() || '?';
+}
+// "9:50–10:35" -> {start:590, end:635} (minuta od ponoći); podržava i običnu crticu
+function parseBellRange(str){
+  if (!str) return null;
+  const parts = str.split(/[–-]/).map(s => s.trim());
+  if (parts.length < 2) return null;
+  const toMin = (t) => {
+    const m = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    return parseInt(m[1],10) * 60 + parseInt(m[2],10);
+  };
+  const start = toMin(parts[0]), end = toMin(parts[1]);
+  if (start == null || end == null) return null;
+  return {start, end};
+}
+function minutesNow(){
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
+function fmtMinutes(min){
+  const h = Math.floor(min / 60), m = min % 60;
+  return h > 0 ? `${h}h ${m}min` : `${m} min`;
+}
+
+function ensureSubjectColor(profile, name){
+  if (!name) return 'var(--ink-faint)';
+  profile._colorMap = profile._colorMap || {};
+  (profile.subjects || []).forEach(s => { if (!profile._colorMap[s.name]) profile._colorMap[s.name] = s.color; });
+  if (!profile._colorMap[name]){
+    const used = Object.keys(profile._colorMap).length;
+    profile._colorMap[name] = FALLBACK_COLORS[used % FALLBACK_COLORS.length];
+  }
+  return profile._colorMap[name];
+}
+
+function shiftHasData(profile, shift){
+  const sd = (profile.schedule || {})[shift] || {};
+  return DAYS.some(d => (sd[d] || []).some(l => l));
+}
+
+// ── Import ──
+function normalizeProfile(raw){
+  if (!raw || typeof raw !== 'object') throw new Error('Datoteka nije prepoznata.');
+  if (!raw.schedule) throw new Error('Nedostaje raspored u datoteci.');
+  const student = raw.student || {};
+  return {
+    id: uid(),
+    student: {
+      name: student.name || 'Učenik',
+      class: student.class || '',
+      school: student.school || ''
+    },
+    bells: raw.bells || {morning:[], afternoon:[]},
+    schedule: {
+      morning: (raw.schedule && raw.schedule.morning) || {},
+      afternoon: (raw.schedule && raw.schedule.afternoon) || {}
+    },
+    subjects: raw.subjects || [],
+    importedAt: new Date().toISOString()
+  };
+}
+
+function handleImportFile(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const profile = normalizeProfile(parsed);
+      const existingIdx = STATE.profiles.findIndex(p =>
+        p.student.name === profile.student.name && p.student.school === profile.student.school
+      );
+      if (existingIdx >= 0){
+        profile.id = STATE.profiles[existingIdx].id;
+        STATE.profiles[existingIdx] = profile;
+        toast(`✓ Raspored za ${profile.student.name} ažuriran`);
+      } else {
+        STATE.profiles.push(profile);
+        toast(`✓ Uvezen raspored za ${profile.student.name}`);
+      }
+      saveProfiles(STATE.profiles);
+      STATE.activeId = profile.id;
+      setActiveId(profile.id);
+      STATE.selectedShift = shiftHasData(profile, 'morning') ? 'morning' : (shiftHasData(profile,'afternoon') ? 'afternoon' : 'morning');
+      closeSheet();
+      renderApp();
+    } catch(err){
+      toast('⚠️ Ovo ne izgleda kao izvezeni raspored (.json)');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+function triggerImport(){ document.getElementById('file-input').click(); }
+
+function deleteActiveProfile(){
+  const p = activeProfile();
+  if (!p) return;
+  STATE.profiles = STATE.profiles.filter(x => x.id !== p.id);
+  saveProfiles(STATE.profiles);
+  STATE.activeId = STATE.profiles[0] ? STATE.profiles[0].id : null;
+  setActiveId(STATE.activeId);
+  closeSheet();
+  toast('🗑️ Raspored obrisan');
+  renderApp();
+}
+
+// ── Sheet ──
+function openSettingsSheet(){
+  const p = activeProfile();
+  document.getElementById('sheet-body').innerHTML = `
+    <div class="sheet-row" onclick="triggerImport()">📂 Uvezi / ažuriraj raspored <span class="arrow">›</span></div>
+    ${p ? `<div class="sheet-row danger" onclick="deleteActiveProfile()">🗑️ Obriši raspored za ${p.student.name} <span class="arrow">›</span></div>` : ''}
+  `;
+  document.getElementById('sheet-backdrop').classList.add('open');
+}
+function closeSheet(){ document.getElementById('sheet-backdrop').classList.remove('open'); }
+function closeSheetOnBackdrop(ev){ if (ev.target.id === 'sheet-backdrop') closeSheet(); }
+
+// ── Selection actions ──
+function selectProfile(id){
+  STATE.activeId = id;
+  setActiveId(id);
+  const p = activeProfile();
+  STATE.selectedShift = shiftHasData(p, 'morning') ? 'morning' : (shiftHasData(p,'afternoon') ? 'afternoon' : 'morning');
+  STATE.selectedDay = isWeekend() ? 'MON' : (DAYS.includes(todayDayKey()) ? todayDayKey() : 'MON');
+  renderApp();
+}
+function selectDay(day){ STATE.selectedDay = day; renderApp(); }
+function selectShift(shift){ STATE.selectedShift = shift; renderApp(); }
+
+// ── Rendering ──
+function renderApp(){
+  const root = document.getElementById('app');
+  if (!STATE.profiles.length){
+    root.innerHTML = renderEmptyState();
+    return;
+  }
+  const p = activeProfile();
+  if (!p){ root.innerHTML = renderEmptyState(); return; }
+
+  const day = STATE.selectedDay || 'MON';
+  const shift = STATE.selectedShift;
+  const lessons = ((p.schedule[shift] || {})[day]) || [];
+  const bells = (p.bells || {})[shift] || [];
+
+  let maxSlot = 6;
+  DAYS.forEach(d => {
+    const l = (p.schedule[shift] || {})[d] || [];
+    for (let s = l.length - 1; s >= 1; s--){ if (l[s]){ maxSlot = Math.max(maxSlot, s); break; } }
+  });
+
+  const showShiftToggle = shiftHasData(p,'morning') && shiftHasData(p,'afternoon');
+  const isTodaySelected = !isWeekend() && day === todayDayKey();
+
+  root.innerHTML = `
+    ${renderHeader(p)}
+    ${STATE.profiles.length > 1 ? renderProfilesRow() : ''}
+    ${renderDayTabs(day)}
+    ${showShiftToggle ? renderShiftToggle(shift) : ''}
+    <div id="now-slot">${isTodaySelected ? renderNowCard(p, lessons, bells, shift) : ''}</div>
+    ${renderPeriodList(p, lessons, bells, maxSlot, isTodaySelected, shift)}
+    ${renderFooter()}
+  `;
+
+  if (_clockTimer) clearInterval(_clockTimer);
+  if (isTodaySelected){
+    _clockTimer = setInterval(() => {
+      const slot = document.getElementById('now-slot');
+      if (slot) slot.innerHTML = renderNowCard(p, lessons, bells, shift);
+    }, 30000);
+  }
+}
+
+function renderHeader(p){
+  return `
+    <div class="app-header">
+      <div class="app-eyebrow">Moj raspored</div>
+      <div class="sticker">
+        <div class="sticker-emoji">🎒</div>
+        <div>
+          <div class="sticker-name">${escapeHtml(p.student.name)}</div>
+          <div class="sticker-sub">${[p.student.class, p.student.school].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="icon-btn" onclick="openSettingsSheet()">⚙️</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderProfilesRow(){
+  const rows = STATE.profiles.map(p => `
+    <div class="profile-chip ${p.id === STATE.activeId ? 'active' : ''}" onclick="selectProfile('${p.id}')">
+      <div class="avatar">${initials(p.student.name)}</div>
+      ${escapeHtml(p.student.name.split(' ')[0])}
+    </div>
+  `).join('');
+  return `<div class="profiles-row">${rows}
+    <div class="profile-chip add" onclick="triggerImport()">+ Dodaj</div>
+  </div>`;
+}
+
+function renderDayTabs(activeDay){
+  const today = todayDayKey();
+  return `<div class="day-tabs">
+    ${DAYS.map(d => `
+      <div class="day-tab ${d === activeDay ? 'active' : ''} ${d === today ? 'today' : ''}" onclick="selectDay('${d}')">
+        ${DAY_SHORT[d]}
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderShiftToggle(shift){
+  return `<div class="shift-toggle">
+    <div class="shift-btn ${shift === 'morning' ? 'active morning' : ''}" onclick="selectShift('morning')">☀️ Jutro</div>
+    <div class="shift-btn ${shift === 'afternoon' ? 'active afternoon' : ''}" onclick="selectShift('afternoon')">🌙 Popodne</div>
+  </div>`;
+}
+
+function findCurrentPeriod(lessons, bells){
+  const now = minutesNow();
+  for (let i = 1; i < Math.max(lessons.length, bells.length); i++){
+    const range = parseBellRange(bells[i]);
+    if (!range) continue;
+    if (now >= range.start && now < range.end){
+      return {index: i, range, status:'current'};
+    }
+  }
+  return null;
+}
+function findNextPeriod(lessons, bells){
+  const now = minutesNow();
+  let best = null;
+  for (let i = 1; i < Math.max(lessons.length, bells.length); i++){
+    const range = parseBellRange(bells[i]);
+    if (!range) continue;
+    if (range.start > now && (!best || range.start < best.range.start)){
+      best = {index:i, range};
+    }
+  }
+  return best;
+}
+
+function renderNowCard(p, lessons, bells, shift){
+  const current = findCurrentPeriod(lessons, bells);
+  const now = minutesNow();
+
+  if (current){
+    const lesson = lessons[current.index] || '';
+    const [name, room] = lesson ? lesson.split('/') : ['',''];
+    const color = lesson ? ensureSubjectColor(p, name) : 'var(--ink-faint)';
+    const total = current.range.end - current.range.start;
+    const elapsed = now - current.range.start;
+    const pct = Math.min(100, Math.max(0, Math.round((elapsed/total)*100)));
+    const remain = current.range.end - now;
+    return `
+      <div class="now-card" style="--stripe:${color}">
+        <div class="now-label"><span class="now-dot"></span> Sada · ${current.index}. sat</div>
+        <div class="now-main">
+          <div>
+            <div class="now-subject">${lesson ? escapeHtml(name) : '– slobodan sat –'}</div>
+            ${room ? `<div class="now-room">Učionica ${escapeHtml(room)}</div>` : ''}
+          </div>
+          <div class="now-time">${bells[current.index] || ''}</div>
+        </div>
+        <div class="now-progress"><div style="width:${pct}%"></div></div>
+        <div class="now-remaining">Još ${fmtMinutes(remain)} do kraja sata</div>
+      </div>
+    `;
+  }
+
+  const next = findNextPeriod(lessons, bells);
+  if (next){
+    const lesson = lessons[next.index] || '';
+    const [name, room] = lesson ? lesson.split('/') : ['',''];
+    const color = lesson ? ensureSubjectColor(p, name) : 'var(--ink-faint)';
+    const untilStart = next.range.start - now;
+    const label = untilStart <= 20 ? `Počinje za ${fmtMinutes(untilStart)}` : 'Odmor';
+    return `
+      <div class="now-card" style="--stripe:${color}">
+        <div class="now-label"><span class="now-dot" style="background:var(--ink-faint);box-shadow:none;animation:none"></span> ${label}</div>
+        <div class="now-main">
+          <div>
+            <div class="now-subject">${lesson ? escapeHtml(name) : '– slobodan sat –'} <span style="font-weight:400;color:var(--ink-faint);font-size:13px">· ${next.index}. sat</span></div>
+            ${room ? `<div class="now-room">Učionica ${escapeHtml(room)}</div>` : ''}
+          </div>
+          <div class="now-time">${bells[next.index] || ''}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const hasAny = lessons.some(l => l);
+  return `
+    <div class="now-card" style="--stripe:var(--good)">
+      <div class="now-label"><span class="now-dot" style="background:var(--good)"></span> ${hasAny ? 'Nastava je gotova za danas' : 'Nema nastave danas'}</div>
+      <div class="now-main"><div class="now-subject" style="font-size:15px;color:var(--ink-soft);font-weight:500">${hasAny ? '🎉 Uživaj u ostatku dana' : '– slobodan dan –'}</div></div>
+    </div>
+  `;
+}
+
+function renderPeriodList(p, lessons, bells, maxSlot, isTodaySelected, shift){
+  const current = isTodaySelected ? findCurrentPeriod(lessons, bells) : null;
+  const now = minutesNow();
+
+  let rows = '';
+  for (let i = 1; i <= maxSlot; i++){
+    const lesson = lessons[i] || '';
+    const [name, room] = lesson ? lesson.split('/') : ['',''];
+    const color = lesson ? ensureSubjectColor(p, name) : 'transparent';
+    const range = parseBellRange(bells[i]);
+    const isPast = isTodaySelected && range && now >= range.end;
+    const isCurrent = current && current.index === i;
+    rows += `
+      <div class="period-row ${isPast ? 'past' : ''} ${isCurrent ? 'current' : ''}">
+        <div class="period-num">${i}.</div>
+        <div class="period-time">${(bells[i]||'').split(/[–-]/)[0] || ''}</div>
+        <div class="period-stripe" style="--stripe:${color}"></div>
+        <div class="period-body">
+          <div class="period-subject ${lesson ? '' : 'empty'}">${lesson ? escapeHtml(name) : '– slobodan sat –'}</div>
+          ${room ? `<div class="period-room">Učionica ${escapeHtml(room)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="list-wrap">
+      <div class="list-title">${DAY_LONG[STATE.selectedDay] || ''}</div>
+      ${rows || `<div class="empty-inline"><div class="empty-emoji">🎉</div><div class="empty-desc">Nema nastave ovaj dan</div></div>`}
+    </div>
+  `;
+}
+
+function renderFooter(){
+  return `
+    <div class="footer-import">
+      <button onclick="openSettingsSheet()">Postavke i uvoz rasporeda</button>
+    </div>
+  `;
+}
+
+function renderEmptyState(){
+  return `
+    <div class="empty-wrap">
+      <div class="empty-emoji">🗓️</div>
+      <div class="empty-title">Nema uvezenog rasporeda</div>
+      <div class="empty-desc">
+        U e-Dnevnik nadzornoj ploči otvori <b>Raspored → Tjedni raspored</b> i klikni
+        <code>⬇ Izvoz</code>. Preuzetu datoteku (.json) uvezi ovdje.
+      </div>
+      <button class="btn-primary" onclick="triggerImport()">📂 Uvezi raspored</button>
+    </div>
+  `;
+}
+
+function escapeHtml(str){
+  return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Init ──
+function init(){
+  STATE.profiles = loadProfiles();
+  STATE.activeId = getActiveId() || (STATE.profiles[0] && STATE.profiles[0].id) || null;
+  const p = activeProfile();
+  STATE.selectedShift = p ? (shiftHasData(p,'morning') ? 'morning' : (shiftHasData(p,'afternoon') ? 'afternoon' : 'morning')) : 'morning';
+  STATE.selectedDay = (!isWeekend() && DAYS.includes(todayDayKey())) ? todayDayKey() : 'MON';
+  renderApp();
+}
+init();
+
+// ══════════════════════════════════════════
+//  PWA: service worker + "Instaliraj app" banner
+// ══════════════════════════════════════════
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+let _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  if (!isStandalone() && !localStorage.getItem('install_banner_dismissed')){
+    document.getElementById('install-banner').classList.add('show');
+  }
+});
+function installApp(){
+  const banner = document.getElementById('install-banner');
+  banner.classList.remove('show');
+  if (!_deferredInstallPrompt) return;
+  _deferredInstallPrompt.prompt();
+  _deferredInstallPrompt.userChoice.finally(() => { _deferredInstallPrompt = null; });
+}
+function dismissInstallBanner(){
+  localStorage.setItem('install_banner_dismissed', '1');
+  document.getElementById('install-banner').classList.remove('show');
+}
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').classList.remove('show');
+});
+</script>
+</body>
+</html>
