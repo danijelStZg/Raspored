@@ -573,6 +573,41 @@
   .qr-scan-progress-text{color:#fff; font-size:13px; font-weight:600; margin-bottom:8px;}
   .qr-scan-dots{display:flex; gap:6px; justify-content:center;}
   .qr-scan-dots span{width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.35); display:inline-block;}
+
+  /* ── QR share modal (dijeljenje app / rasporeda) ── */
+  .qr-share-backdrop{
+    position:fixed; inset:0;
+    background:rgba(38,42,59,0.45);
+    z-index:90;
+    display:none;
+    align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .qr-share-backdrop.open{display:flex;}
+  .qr-share-card{
+    background:var(--card);
+    border-radius:18px;
+    padding:24px 22px 22px;
+    max-width:360px; width:100%;
+    max-height:88vh; overflow-y:auto;
+    text-align:center;
+    box-shadow:0 12px 32px rgba(38,42,59,0.18);
+    animation:riseIn .25s ease both;
+  }
+  .qr-share-title{font-family:var(--font-display); font-weight:700; font-size:16px; margin-bottom:4px;}
+  .qr-share-sub{font-family:var(--font-mono); font-size:11px; color:var(--ink-faint); margin-bottom:14px; min-height:14px;}
+  .qr-share-img-wrap{
+    background:#fff; border-radius:14px; padding:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .qr-share-img-wrap img{width:100%; max-width:280px; height:auto; aspect-ratio:1/1; image-rendering:pixelated; display:block;}
+  .qr-share-pager{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px; min-height:30px;}
+  .qr-share-hint{font-size:12px; color:var(--ink-soft); margin-top:14px; line-height:1.6;}
+  .qr-share-close{
+    margin-top:16px; padding:9px 20px; border-radius:10px;
+    border:1px solid var(--line); background:transparent; color:var(--ink-soft);
+    font-size:13px; font-weight:600; cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -612,10 +647,23 @@
   </div>
 </div>
 
+<div class="qr-share-backdrop" id="qr-share-backdrop" onclick="closeQrShareOnBackdrop(event)">
+  <div class="qr-share-card">
+    <div class="qr-share-title" id="qr-share-title"></div>
+    <div class="qr-share-sub" id="qr-share-sub"></div>
+    <div class="qr-share-img-wrap"><img id="qr-share-img" alt="QR kod" /></div>
+    <div class="qr-share-pager" id="qr-share-pager"></div>
+    <div class="qr-share-hint" id="qr-share-hint"></div>
+    <button class="qr-share-close" onclick="closeQrShareModal()">Zatvori</button>
+  </div>
+</div>
+
 <!-- lz-string (pieroxy, MIT/WTFPL) — dekompresija QR podataka -->
 <script src="lib/lz-string.min.js"></script>
 <!-- jsQR (cozmo/jsQR, Apache-2.0) — čitanje QR koda iz kamere -->
 <script src="lib/jsqr.js"></script>
+<!-- qrcode-generator (Kazuhiko Arase, MIT) — generiranje QR koda za dijeljenje -->
+<script src="lib/qrcode.js"></script>
 
 <script>
 // ══════════════════════════════════════════
@@ -842,7 +890,9 @@ function openSettingsSheet(){
   const hasBothShifts = p && shiftHasData(p, 'morning') && shiftHasData(p, 'afternoon');
   document.getElementById('sheet-body').innerHTML = `
     <div class="sheet-row" onclick="openAddChooser()">📂 Dodaj / ažuriraj raspored <span class="arrow">›</span></div>
+    ${p ? `<div class="sheet-row" onclick="openScheduleShareQr()">📤 Podijeli raspored (QR) <span class="arrow">›</span></div>` : ''}
     ${hasBothShifts ? `<div class="sheet-row" onclick="openWeekAnchorSheet()">🔄 Aktivan tjedan (smjene) <span class="arrow">›</span></div>` : ''}
+    <div class="sheet-row" onclick="openAppShareQr()">📲 Podijeli aplikaciju (QR) <span class="arrow">›</span></div>
     ${p ? `<div class="sheet-row danger" onclick="deleteActiveProfile()">🗑️ Obriši raspored za ${p.student.name} <span class="arrow">›</span></div>` : ''}
   `;
   document.getElementById('sheet-backdrop').classList.add('open');
@@ -1289,6 +1339,101 @@ function stopQrCamera(){
 function closeQrScanner(){
   stopQrCamera();
   document.getElementById('qr-scanner').classList.remove('open');
+}
+
+// ══════════════════════════════════════════
+//  QR DIJELJENJE — app link + raspored između uređaja
+// ══════════════════════════════════════════
+const APP_SHARE_URL = 'https://danijelstzg.github.io/Raspored/';
+const SHARE_QR_CHUNK_SIZE = 1100; // isti format/veličina kao izvoz iz e-Dnevnik dashboarda
+
+function makeQrDataUrl(text){
+  const qr = qrcode(0, 'M'); // typeNumber 0 = auto, ECC razina M
+  qr.addData(text);
+  qr.make();
+  return qr.createDataURL(10); // veći cellSize = oštrija slika i pri uvećanju
+}
+
+let _shareChunks = [];
+let _shareIndex = 0;
+let _shareAutoTimer = null;
+
+function openQrShareModal(title, chunks, hint){
+  _shareChunks = chunks;
+  _shareIndex = 0;
+  document.getElementById('qr-share-title').textContent = title;
+  document.getElementById('qr-share-hint').textContent = hint;
+  document.getElementById('qr-share-backdrop').classList.add('open');
+  renderShareFrame();
+  if (_shareChunks.length > 1) startShareAutoAdvance();
+}
+
+function renderShareFrame(){
+  const total = _shareChunks.length;
+  document.getElementById('qr-share-img').src = makeQrDataUrl(_shareChunks[_shareIndex]);
+  document.getElementById('qr-share-sub').textContent = total > 1 ? `Dio ${_shareIndex + 1} / ${total}` : '';
+  const pager = document.getElementById('qr-share-pager');
+  pager.innerHTML = total > 1 ? `
+    <button onclick="shareQrPrev()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--ink-soft)">‹</button>
+    ${Array.from({length: total}).map((_, i) => `<span style="width:6px;height:6px;border-radius:50%;background:${i === _shareIndex ? 'var(--ink)' : 'var(--line)'}"></span>`).join('')}
+    <button onclick="shareQrNext()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--ink-soft)">›</button>
+  ` : '';
+}
+function shareQrNext(){ stopShareAutoAdvance(); _shareIndex = (_shareIndex + 1) % _shareChunks.length; renderShareFrame(); }
+function shareQrPrev(){ stopShareAutoAdvance(); _shareIndex = (_shareIndex - 1 + _shareChunks.length) % _shareChunks.length; renderShareFrame(); }
+function startShareAutoAdvance(){
+  stopShareAutoAdvance();
+  _shareAutoTimer = setInterval(() => { _shareIndex = (_shareIndex + 1) % _shareChunks.length; renderShareFrame(); }, 1800);
+}
+function stopShareAutoAdvance(){ if (_shareAutoTimer){ clearInterval(_shareAutoTimer); _shareAutoTimer = null; } }
+function closeQrShareModal(){ stopShareAutoAdvance(); document.getElementById('qr-share-backdrop').classList.remove('open'); }
+function closeQrShareOnBackdrop(ev){ if (ev.target.id === 'qr-share-backdrop') closeQrShareModal(); }
+
+function openAppShareQr(){
+  closeSheet();
+  openQrShareModal(
+    '📲 Instaliraj aplikaciju',
+    [APP_SHARE_URL],
+    'Skeniraj ovaj kod na drugom mobitelu — otvorit će stranicu aplikacije s koje se može instalirati na početni zaslon.'
+  );
+}
+
+// Isti kompaktni format kao QR izvoz u e-Dnevnik dashboardu ("RQ1:dio:ukupno:podaci"),
+// da se raspored može podijeliti izravno s jednog uređaja na drugi bez datoteke.
+function buildCompactPayloadFromProfile(profile){
+  const toDayArrays = (schedObj) => DAYS.map(d => (schedObj && schedObj[d]) || []);
+  return {
+    v: 1,
+    n: profile.student.name || '',
+    c: profile.student.class || '',
+    sc: profile.student.school || '',
+    bm: (profile.bells && profile.bells.morning) || [],
+    ba: (profile.bells && profile.bells.afternoon) || [],
+    dm: toDayArrays(profile.schedule.morning),
+    da: toDayArrays(profile.schedule.afternoon)
+  };
+}
+
+function encodeProfileForQr(profile){
+  const json = JSON.stringify(buildCompactPayloadFromProfile(profile));
+  const compressed = LZString.compressToBase64(json);
+  const total = Math.max(1, Math.ceil(compressed.length / SHARE_QR_CHUNK_SIZE));
+  const chunks = [];
+  for (let i = 0; i < total; i++){
+    chunks.push(`RQ1:${i + 1}:${total}:${compressed.slice(i * SHARE_QR_CHUNK_SIZE, (i + 1) * SHARE_QR_CHUNK_SIZE)}`);
+  }
+  return chunks;
+}
+
+function openScheduleShareQr(){
+  const p = activeProfile();
+  if (!p) return;
+  closeSheet();
+  const chunks = encodeProfileForQr(p);
+  const hint = chunks.length > 1
+    ? `Raspored je velik pa je podijeljen u ${chunks.length} dijela — na drugom uređaju drži kameru uperenu, dijelovi se sami izmjenjuju svake ~2 sekunde dok se ne skeniraju svi.`
+    : 'Na drugom uređaju otvori ovu app → ⚙️ → Dodaj / ažuriraj raspored → Skeniraj QR kod.';
+  openQrShareModal(`📤 Raspored — ${p.student.name}`, chunks, hint);
 }
 
 // ── Init ──
