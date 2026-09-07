@@ -705,6 +705,61 @@ function shiftHasData(profile, shift){
   return DAYS.some(d => (sd[d] || []).some(l => l));
 }
 
+// ══════════════════════════════════════════
+//  NAIZMJENIČNE SMJENE — "aktivan tjedan"
+// ══════════════════════════════════════════
+// Za djecu koja idu naizmjenično (jedan tjedan ujutro, drugi popodne):
+// korisnik jednom označi "ovaj tjedan imam X", a app onda sama izračuna
+// koja je smjena aktivna svaki sljedeći tjedan (parnost tjedana od te točke).
+
+function mondayOf(date){
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0=Ned, 1=Pon, ... 6=Sub
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+function weeksBetween(a, b){
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  return Math.round((b.getTime() - a.getTime()) / msPerWeek);
+}
+function shiftAnchorKey(profileId){ return 'raspored_shift_anchor_' + profileId; }
+function getShiftAnchor(profileId){
+  try { return JSON.parse(localStorage.getItem(shiftAnchorKey(profileId))); }
+  catch { return null; }
+}
+function setShiftAnchor(profileId, shift, forDate){
+  const anchorMonday = mondayOf(forDate || new Date());
+  localStorage.setItem(shiftAnchorKey(profileId), JSON.stringify({
+    anchorMonday: anchorMonday.toISOString(),
+    anchorShift: shift
+  }));
+}
+function clearShiftAnchor(profileId){ localStorage.removeItem(shiftAnchorKey(profileId)); }
+
+// Vraća 'morning'|'afternoon' za dani tjedan, ili null ako anchor nije postavljen
+function computeActiveShift(profileId, forDate){
+  const anchor = getShiftAnchor(profileId);
+  if (!anchor) return null;
+  const anchorMonday = new Date(anchor.anchorMonday);
+  const targetMonday = mondayOf(forDate || new Date());
+  const diffWeeks = weeksBetween(anchorMonday, targetMonday);
+  const sameParity = (((diffWeeks % 2) + 2) % 2) === 0;
+  const other = anchor.anchorShift === 'morning' ? 'afternoon' : 'morning';
+  return sameParity ? anchor.anchorShift : other;
+}
+
+// Koju smjenu prikazati kao zadanu kad se profil otvori/odabere
+function defaultShiftFor(profile){
+  const hasBoth = shiftHasData(profile, 'morning') && shiftHasData(profile, 'afternoon');
+  if (hasBoth){
+    const active = computeActiveShift(profile.id);
+    if (active) return active;
+  }
+  return shiftHasData(profile, 'morning') ? 'morning' : (shiftHasData(profile, 'afternoon') ? 'afternoon' : 'morning');
+}
+
 // ── Import ──
 function normalizeProfile(raw){
   if (!raw || typeof raw !== 'object') throw new Error('Datoteka nije prepoznata.');
@@ -749,7 +804,7 @@ function handleImportFile(event){
       saveProfiles(STATE.profiles);
       STATE.activeId = profile.id;
       setActiveId(profile.id);
-      STATE.selectedShift = shiftHasData(profile, 'morning') ? 'morning' : (shiftHasData(profile,'afternoon') ? 'afternoon' : 'morning');
+      STATE.selectedShift = defaultShiftFor(profile);
       closeSheet();
       renderApp();
     } catch(err){
@@ -784,12 +839,52 @@ function deleteActiveProfile(){
 // ── Sheet ──
 function openSettingsSheet(){
   const p = activeProfile();
+  const hasBothShifts = p && shiftHasData(p, 'morning') && shiftHasData(p, 'afternoon');
   document.getElementById('sheet-body').innerHTML = `
     <div class="sheet-row" onclick="openAddChooser()">📂 Dodaj / ažuriraj raspored <span class="arrow">›</span></div>
+    ${hasBothShifts ? `<div class="sheet-row" onclick="openWeekAnchorSheet()">🔄 Aktivan tjedan (smjene) <span class="arrow">›</span></div>` : ''}
     ${p ? `<div class="sheet-row danger" onclick="deleteActiveProfile()">🗑️ Obriši raspored za ${p.student.name} <span class="arrow">›</span></div>` : ''}
   `;
   document.getElementById('sheet-backdrop').classList.add('open');
 }
+
+function openWeekAnchorSheet(){
+  const p = activeProfile();
+  if (!p) return;
+  const anchor = getShiftAnchor(p.id);
+  const activeNow = computeActiveShift(p.id);
+  const firstName = escapeHtml((p.student.name || '').split(' ')[0] || 'dijete');
+  document.getElementById('sheet-body').innerHTML = `
+    <div style="padding:2px 4px 14px;font-size:13px;color:var(--ink-soft);line-height:1.6">
+      Ako ${firstName} ima nastavu naizmjenično (jedan tjedan ujutro, drugi popodne), označi koju smjenu ima OVAJ tjedan — app onda sama izračuna koja je smjena aktivna svaki sljedeći tjedan.
+    </div>
+    ${anchor ? `<div style="font-size:12px;color:var(--ink-faint);margin-bottom:12px">Trenutno: ovaj tjedan = ${activeNow === 'morning' ? '☀️ Jutro' : '🌙 Popodne'}</div>` : ''}
+    <div class="sheet-row" onclick="setWeekAnchorAndClose('morning')">☀️ Ovaj tjedan imam JUTRO <span class="arrow">›</span></div>
+    <div class="sheet-row" onclick="setWeekAnchorAndClose('afternoon')">🌙 Ovaj tjedan imam POPODNE <span class="arrow">›</span></div>
+    ${anchor ? `<div class="sheet-row danger" onclick="removeWeekAnchorAndClose()">✕ Ukloni automatsko prebacivanje <span class="arrow">›</span></div>` : ''}
+  `;
+  document.getElementById('sheet-backdrop').classList.add('open');
+}
+
+function setWeekAnchorAndClose(shift){
+  const p = activeProfile();
+  if (!p) return;
+  setShiftAnchor(p.id, shift);
+  STATE.selectedShift = shift;
+  closeSheet();
+  toast(`✓ Postavljeno: ovaj tjedan = ${shift === 'morning' ? 'Jutro' : 'Popodne'}`);
+  renderApp();
+}
+
+function removeWeekAnchorAndClose(){
+  const p = activeProfile();
+  if (!p) return;
+  clearShiftAnchor(p.id);
+  closeSheet();
+  toast('Automatsko prebacivanje uklonjeno — smjena se sad bira ručno');
+  renderApp();
+}
+
 function closeSheet(){ document.getElementById('sheet-backdrop').classList.remove('open'); }
 function closeSheetOnBackdrop(ev){ if (ev.target.id === 'sheet-backdrop') closeSheet(); }
 
@@ -798,7 +893,7 @@ function selectProfile(id){
   STATE.activeId = id;
   setActiveId(id);
   const p = activeProfile();
-  STATE.selectedShift = shiftHasData(p, 'morning') ? 'morning' : (shiftHasData(p,'afternoon') ? 'afternoon' : 'morning');
+  STATE.selectedShift = defaultShiftFor(p);
   STATE.selectedDay = isWeekend() ? 'MON' : (DAYS.includes(todayDayKey()) ? todayDayKey() : 'MON');
   renderApp();
 }
@@ -833,7 +928,7 @@ function renderApp(){
     ${renderHeader(p)}
     ${STATE.profiles.length > 1 ? renderProfilesRow() : ''}
     ${renderDayTabs(day)}
-    ${showShiftToggle ? renderShiftToggle(shift) : ''}
+    ${showShiftToggle ? renderShiftToggle(shift, p) : ''}
     <div id="now-slot">${isTodaySelected ? renderNowCard(p, lessons, bells, shift) : ''}</div>
     ${renderPeriodList(p, lessons, bells, maxSlot, isTodaySelected, shift)}
     ${renderFooter()}
@@ -889,11 +984,20 @@ function renderDayTabs(activeDay){
   </div>`;
 }
 
-function renderShiftToggle(shift){
-  return `<div class="shift-toggle">
-    <div class="shift-btn ${shift === 'morning' ? 'active morning' : ''}" onclick="selectShift('morning')">☀️ Jutro</div>
-    <div class="shift-btn ${shift === 'afternoon' ? 'active afternoon' : ''}" onclick="selectShift('afternoon')">🌙 Popodne</div>
-  </div>`;
+function renderShiftToggle(shift, profile){
+  const activeShift = computeActiveShift(profile.id); // null ako "aktivan tjedan" nije postavljen
+  const badge = (s) => activeShift === s
+    ? '<span style="font-size:8px;display:inline-block;vertical-align:middle;background:rgba(63,159,108,0.18);color:#2f7d52;padding:1px 6px;border-radius:999px;margin-left:5px;font-weight:800;letter-spacing:.3px">AKTIVNO</span>'
+    : '';
+  return `
+    <div class="shift-toggle">
+      <div class="shift-btn ${shift === 'morning' ? 'active morning' : ''}" onclick="selectShift('morning')">☀️ Jutro${badge('morning')}</div>
+      <div class="shift-btn ${shift === 'afternoon' ? 'active afternoon' : ''}" onclick="selectShift('afternoon')">🌙 Popodne${badge('afternoon')}</div>
+    </div>
+    ${activeShift && activeShift !== shift
+      ? `<div style="text-align:center;font-size:11px;color:var(--ink-faint);margin:2px 18px 10px">👁️ Gledaš smjenu koja ovaj tjedan nije aktivna</div>`
+      : ''}
+  `;
 }
 
 function findCurrentPeriod(lessons, bells){
@@ -1165,7 +1269,7 @@ function finishQrScan(){
     saveProfiles(STATE.profiles);
     STATE.activeId = profile.id;
     setActiveId(profile.id);
-    STATE.selectedShift = shiftHasData(profile, 'morning') ? 'morning' : (shiftHasData(profile,'afternoon') ? 'afternoon' : 'morning');
+    STATE.selectedShift = defaultShiftFor(profile);
     closeQrScanner(); // zaustavlja kameru tek nakon uspješnog uvoza
     renderApp();
   } catch (err) {
@@ -1192,7 +1296,7 @@ function init(){
   STATE.profiles = loadProfiles();
   STATE.activeId = getActiveId() || (STATE.profiles[0] && STATE.profiles[0].id) || null;
   const p = activeProfile();
-  STATE.selectedShift = p ? (shiftHasData(p,'morning') ? 'morning' : (shiftHasData(p,'afternoon') ? 'afternoon' : 'morning')) : 'morning';
+  STATE.selectedShift = p ? defaultShiftFor(p) : 'morning';
   STATE.selectedDay = (!isWeekend() && DAYS.includes(todayDayKey())) ? todayDayKey() : 'MON';
   renderApp();
 }
