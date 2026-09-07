@@ -128,45 +128,6 @@
   }
   .icon-btn:active{transform:scale(0.94);}
 
-  /* ── Profile switcher ── */
-  .profiles-row{
-    display:flex;
-    gap:8px;
-    padding:2px 18px 4px;
-    overflow-x:auto;
-  }
-  .profile-chip{
-    flex:0 0 auto;
-    display:flex; align-items:center; gap:6px;
-    padding:6px 12px 6px 6px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    background:var(--card);
-    font-size:12px;
-    font-weight:600;
-    color:var(--ink-soft);
-    cursor:pointer;
-    white-space:nowrap;
-  }
-  .profile-chip.active{
-    background:var(--ink);
-    color:#fff;
-    border-color:var(--ink);
-  }
-  .profile-chip .avatar{
-    width:20px; height:20px;
-    border-radius:50%;
-    background:var(--sun-soft);
-    color:var(--sun);
-    font-size:10px; font-weight:800;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .profile-chip.active .avatar{background:rgba(255,255,255,0.2); color:#fff;}
-  .profile-chip.add{
-    color:var(--ink-soft);
-    font-weight:700;
-  }
-
   /* ── Day tabs (torn paper) ── */
   .day-tabs{
     display:flex;
@@ -976,7 +937,6 @@ function renderApp(){
 
   root.innerHTML = `
     ${renderHeader(p)}
-    ${STATE.profiles.length > 1 ? renderProfilesRow() : ''}
     ${renderDayTabs(day)}
     ${showShiftToggle ? renderShiftToggle(shift, p) : ''}
     <div id="now-slot">${isTodaySelected ? renderNowCard(p, lessons, bells, shift) : ''}</div>
@@ -994,15 +954,17 @@ function renderApp(){
 }
 
 function renderHeader(p){
+  const hasMultiple = STATE.profiles.length > 1;
   return `
     <div class="app-header">
       <div class="app-eyebrow">Moj raspored</div>
-      <div class="sticker">
+      <div class="sticker" onclick="openProfilePicker()" style="cursor:pointer">
         <div class="sticker-emoji">🎒</div>
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="sticker-name">${escapeHtml(p.student.name)}</div>
           <div class="sticker-sub">${[p.student.class, p.student.school].filter(Boolean).join(' · ')}</div>
         </div>
+        ${hasMultiple ? '<div style="color:var(--ink-faint);font-size:13px;padding-left:2px">⌄</div>' : ''}
       </div>
       <div class="header-actions">
         <div class="icon-btn" onclick="openSettingsSheet()">⚙️</div>
@@ -1011,16 +973,22 @@ function renderHeader(p){
   `;
 }
 
-function renderProfilesRow(){
+function openProfilePicker(){
   const rows = STATE.profiles.map(p => `
-    <div class="profile-chip ${p.id === STATE.activeId ? 'active' : ''}" onclick="selectProfile('${p.id}')">
-      <div class="avatar">${initials(p.student.name)}</div>
-      ${escapeHtml(p.student.name.split(' ')[0])}
+    <div class="sheet-row" onclick="selectProfile('${p.id}'); closeSheet();">
+      <span style="display:inline-flex;align-items:center;gap:9px;min-width:0">
+        <span style="flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;background:${p.id === STATE.activeId ? 'var(--ink)' : 'var(--paper2)'};color:${p.id === STATE.activeId ? '#fff' : 'var(--ink-soft)'}">${initials(p.student.name)}</span>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.student.name)}</span>
+      </span>
+      ${p.id === STATE.activeId ? '<span class="arrow" style="color:var(--good)">✓</span>' : '<span class="arrow">›</span>'}
     </div>
   `).join('');
-  return `<div class="profiles-row">${rows}
-    <div class="profile-chip add" onclick="openAddChooser()">+ Dodaj</div>
-  </div>`;
+  document.getElementById('sheet-body').innerHTML = `
+    <div style="padding:2px 4px 10px;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:1px;font-family:var(--font-mono)">Odaberi raspored za</div>
+    ${rows}
+    <div class="sheet-row" onclick="openAddChooser()">+ Dodaj novo dijete <span class="arrow">›</span></div>
+  `;
+  document.getElementById('sheet-backdrop').classList.add('open');
 }
 
 function renderDayTabs(activeDay){
