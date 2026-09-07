@@ -1359,6 +1359,10 @@ let _shareIndex = 0;
 let _shareAutoTimer = null;
 
 function openQrShareModal(title, chunks, hint){
+  if (typeof qrcode === 'undefined'){
+    toast('⚠️ QR knjižnica nije učitana. Provjeri da lib/qrcode.js postoji u repozitoriju.', 4000);
+    return;
+  }
   _shareChunks = chunks;
   _shareIndex = 0;
   document.getElementById('qr-share-title').textContent = title;
@@ -1370,7 +1374,16 @@ function openQrShareModal(title, chunks, hint){
 
 function renderShareFrame(){
   const total = _shareChunks.length;
-  document.getElementById('qr-share-img').src = makeQrDataUrl(_shareChunks[_shareIndex]);
+  const img = document.getElementById('qr-share-img');
+  try {
+    img.src = makeQrDataUrl(_shareChunks[_shareIndex]);
+  } catch (err) {
+    img.removeAttribute('src');
+    document.getElementById('qr-share-hint').textContent =
+      '⚠️ Greška pri generiranju QR koda (' + err.message + '). Provjeri da je lib/qrcode.js ispravno uploadan u repozitorij, u istoj mapi kao lib/jsqr.js.';
+    document.getElementById('qr-share-pager').innerHTML = '';
+    return;
+  }
   document.getElementById('qr-share-sub').textContent = total > 1 ? `Dio ${_shareIndex + 1} / ${total}` : '';
   const pager = document.getElementById('qr-share-pager');
   pager.innerHTML = total > 1 ? `
