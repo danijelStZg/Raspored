@@ -1,7 +1,7 @@
 // Service worker za "Moj raspored" — cache app shella za rad bez interneta.
 // Podaci o rasporedu žive u localStorage, ne ovise o service workeru.
 
-const CACHE_NAME = 'raspored-shell-v5';
+const CACHE_NAME = 'raspored-shell-v6';
 const APP_SHELL = [
   './',
   './index.html',

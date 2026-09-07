@@ -1313,7 +1313,7 @@ function closeQrScanner(){
 //  QR DIJELJENJE — app link + raspored između uređaja
 // ══════════════════════════════════════════
 const APP_SHARE_URL = 'https://danijelstzg.github.io/Raspored/';
-const SHARE_QR_CHUNK_SIZE = 1100; // isti format/veličina kao izvoz iz e-Dnevnik dashboarda
+const SHARE_QR_CHUNK_SIZE = 700; // isti format kao izvoz iz e-Dnevnik dashboarda; manji dio = manje gust, čitljiviji kod
 
 function makeQrDataUrl(text){
   const qr = qrcode(0, 'M'); // typeNumber 0 = auto, ECC razina M
